@@ -282,6 +282,7 @@ int main(void) {
 		rxq = osMessageQueueNew(Q_SIZE, sizeof(UCHAR), NULL);
 		
 		osThreadNew(comms_test_thread, NULL, NULL);
+	
 		osKernelStart();
 		
 		for (;;);

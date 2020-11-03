@@ -31,8 +31,16 @@ enum color_t {NONE, RED, GREEN, BLUE, CYAN, YELLOW, MAGENTA, WHITE};
 
 volatile UINT errcode;
 volatile UCHAR errdata;
+volatile uint8_t global_rx = 0x0;
+
+
 osMessageQueueId_t txq;
 osMessageQueueId_t rxq;
+osMessageQueueId_t LED;
+osMessageQueueId_t music;
+
+osSemaphoreId_t mySem;
+
 
 void led_control(enum color_t color) {
 	PTB->PDOR &= ~MASK32(RED_LED) & ~MASK32(GREEN_LED); // Switch on RED and GREEN LED
@@ -118,6 +126,60 @@ void InitPWM(void)
 	// Enable PWM on TPM0 Channel 3 -> PTD3
 	TPM0_C3SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
 	TPM0_C3SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+	
+	TPM0_C0V = 0;
+	TPM0_C1V = 0;
+	TPM0_C2V = 0;
+	TPM0_C3V = 0;
+}
+
+void motor() {
+	uint8_t data;
+	for (;;) {
+		osMessageQueueGet(rxq, &data, NULL, 0);
+		switch(data) {
+			case 1: //forward
+				TPM0_C0V = 0;
+				TPM0_C1V = FREQUENCY_TO_MOD(100);
+				TPM0_C2V = 0;
+				TPM0_C3V = FREQUENCY_TO_MOD(100);
+				break;
+			case 2: //left
+				TPM0_C0V = FREQUENCY_TO_MOD(100);
+				TPM0_C1V = 0;
+				TPM0_C2V = 0;
+				TPM0_C3V = FREQUENCY_TO_MOD(100);
+				break;
+			case 3: //back
+				TPM0_C0V = FREQUENCY_TO_MOD(100);
+				TPM0_C1V = 0;
+				TPM0_C2V = FREQUENCY_TO_MOD(100);
+				TPM0_C3V = 0;
+				break;
+			case 4: //right
+				TPM0_C0V = 0;
+				TPM0_C1V = FREQUENCY_TO_MOD(100);
+				TPM0_C2V = FREQUENCY_TO_MOD(100);
+				TPM0_C3V = 0;
+				break;
+			case 5: //forward left
+				TPM0_C0V = 0;
+				TPM0_C1V = FREQUENCY_TO_MOD(50);
+				TPM0_C2V = 0;
+				TPM0_C3V = FREQUENCY_TO_MOD(50);
+				break;
+			case 6: //forward right
+				TPM0_C0V = 0;
+				TPM0_C1V = FREQUENCY_TO_MOD(50);
+				TPM0_C2V = 0;
+				TPM0_C3V = FREQUENCY_TO_MOD(50);
+				break;
+		}
+	}
+}
+
+void playSound() {
+	
 }
 
 void InitGPIO(void)
@@ -160,20 +222,29 @@ void InitUART2(uint32_t baud_rate) {
 	UART2->C3 = 0;
   
 	//UART2->C2 &= ~UART_C2_TIE_MASK; // we do not need to transmit
-	UART2->C2 |= UART_C2_RIE_MASK;
   UART2->C2 |= UART_C2_RE_MASK | UART_C2_TE_MASK;
 	
   NVIC_SetPriority(UART2_IRQn, UART2_INT_PRIO);
   NVIC_ClearPendingIRQ(UART2_IRQn);
 	NVIC_EnableIRQ(UART2_IRQn);
+	UART2->C2 |= UART_C2_RIE_MASK;
+
 }
 
 // flags cleared after reading UART2->S1 and UART2->D
 void UART2_IRQHandler(void) {
   NVIC_ClearPendingIRQ(UART2_IRQn);
+	
 	UCHAR S1 = UART2->S1; // to prevent any part from clearing S1
-	UCHAR currdata = UART2->D;
+	uint8_t currdata = UART2->D;
 	UCHAR d;
+	if (S1 & UART_S1_RDRF_MASK) {
+		global_rx = currdata;
+		//osMessageQueuePut(rxq, (uint8_t*)&currdata, 0, 0);
+		osSemaphoreRelease(mySem);
+	}
+	/**
+	// transmit not used
   if (S1 & UART_S1_TDRE_MASK) {
     // can send another character
 		if (osMessageQueueGet(txq, &d, 0, 0) == osOK) {
@@ -183,13 +254,15 @@ void UART2_IRQHandler(void) {
       UART2->C2 &= ~UART_C2_TIE_MASK;
     }
   } 
-
+	// receive code todo here
   if (S1 & UART_S1_RDRF_MASK) {
     // received a character
-		if (osMessageQueuePut(rxq, &currdata, 0, 0) == osOK) {
+		if (osMessageQueuePut(rxq, (uint8_t*)&currdata, 0, 0) == osOK) {
       // error -queue full.
       errcode = ERR_BUFOVF;
       errdata = currdata;
+			osSemaphoreRelease(mySem);
+
     }
   }
 
@@ -201,7 +274,7 @@ void UART2_IRQHandler(void) {
     // handle the error
     errcode = ERR_UARTERR;
     errdata = currdata;
-  }
+  }**/
 }
 
 // move len bytes from buf to queue, return number of bytes moved
@@ -228,28 +301,26 @@ UINT uart_rx(UCHAR *buf, UINT len) {
 	return i;
 }
 
-void comms_test_thread(void *argument) {		
-		/* led_control(CYAN);
-		for (UINT i = 0; i < len; ++i) {
-			uart_tx(buf + i, 1);
-		}
-		
-		for (;;) {		
-			if (uart_tx(tx_data, 2) == 2) {
-				led_control(RED);
-			}
-			
-			if (uart_rx(rx_data, 2) == 2) {
-				led_control(GREEN);
-			}
-			
-			if (rx_data[0] == 'O') {
-				led_control(BLUE);
-			}
-		} */
-		
+void comms_test_thread(void *argument) {				
 		UCHAR rx_char;
+		_Bool isRunning;
+		_Bool playingMusic;
+		uint8_t messageData = global_rx;
     for (;;) {
+			osSemaphoreAcquire(mySem, osWaitForever);
+			osMessageQueuePut(rxq, (uint8_t*)&global_rx, 0, 0);
+			messageData = global_rx;
+			if (messageData > 0) {
+				isRunning = 1;
+			}	else {
+				isRunning = 0;
+			}
+			if (messageData == 10) {
+				playingMusic = 1;
+			}
+			osMessageQueuePut(LED, &isRunning, 0, 0);
+			osMessageQueuePut(music, &playingMusic, 0, 0);
+			/**
 			led_control(RED);
 			osDelay(1000);
 			led_control(GREEN);
@@ -257,33 +328,49 @@ void comms_test_thread(void *argument) {
       // if the app sent data is 3, flash blue
       if (uart_rx(&rx_char, 1) == 1) {
 				led_control(BLUE);
-				if (rx_char == 0x01) {
-					led_control(MAGENTA);
+				switch(rx_char) {
+					case 0x01:
+						led_control(MAGENTA);
+						break;
+					case 0x02:
+						led_control(YELLOW);
+						break;
+					case 0x03:
+						led_control(CYAN);
+
+						motorForward();
+					break;
+					case 0x04:
+						motorLeft();
+					break;
+					case 0x05:
+						motorRight();
+					break;
+					case 0x06:
+						motorBackward();
+					break;
 				}
-				if (rx_char == 0x02) {
-					led_control(YELLOW);
-				}
-				if (rx_char == 0x03) {
-					led_control(CYAN);
-				}
+				
 				osDelay(1000);
-			}
+			}**/
 		}
 }
 
 int main(void) {
 		InitGPIO();
 		InitUART2(BAUD_RATE);
+	InitPWM();
     SystemCoreClockUpdate();
 		
 		osKernelInitialize();
+		mySem = osSemaphoreNew(1, 0, NULL);
 		led_control(YELLOW);
 		txq = osMessageQueueNew(Q_SIZE, sizeof(UCHAR), NULL);
 		rxq = osMessageQueueNew(Q_SIZE, sizeof(UCHAR), NULL);
-		
+		LED = osMessageQueueNew(Q_SIZE, sizeof(_Bool), NULL);
+		music = osMessageQueueNew(Q_SIZE, sizeof(_Bool), NULL);
 		osThreadNew(comms_test_thread, NULL, NULL);
-	
+		osThreadNew(motor, NULL, NULL);
 		osKernelStart();
-		
 		for (;;);
 }

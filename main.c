@@ -8,10 +8,12 @@
 #define MASK32(x) ((uint32_t)(1 << ((uint32_t)x))) // Changes all bits to 0 except x
 enum color_t {NONE, RED, GREEN, BLUE, CYAN, YELLOW, MAGENTA, WHITE};
 
-#define FRONT_LEFT_WHEEL 0
-#define FRONT_RIGHT_WHEEL 3
-#define BACK_LEFT_WHEEL 4
-#define BACK_RIGHT_WHEEL 5
+#define PTD0_Pin 0
+#define PTD1_Pin 1
+#define PTD2_Pin 2
+#define PTD3_Pin 3
+
+#define FREQUENCY_TO_MOD(x) (375000 / x)
 
 #define UART_TX_PORTE22 22
 #define UART_RX_PORTE23 23
@@ -64,28 +66,29 @@ void led_control(enum color_t color) {
 	}
 }
 
+/* initPWM() */
 void InitPWM(void)
 {
-	// Enable clock for port B and port D
-  SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;
+	// Enable Clock Gating for PORTB and PORTD
+	SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;
 	SIM_SCGC5 |= SIM_SCGC5_PORTD_MASK;
 	
-	// Configure pin mux to alt 4
-	PORTB->PCR[FRONT_LEFT_WHEEL] &= ~PORT_PCR_MUX_MASK;
-	PORTB->PCR[FRONT_LEFT_WHEEL] |= PORT_PCR_MUX(4);
+	// Configure Mode 4 for the PWM pin operation
+	PORTD->PCR[PTD0_Pin] &= ~PORT_PCR_MUX_MASK;
+	PORTD->PCR[PTD0_Pin] |= PORT_PCR_MUX(4);
 	
-	PORTB->PCR[FRONT_RIGHT_WHEEL] &= ~PORT_PCR_MUX_MASK;
-	PORTB->PCR[FRONT_RIGHT_WHEEL] |= PORT_PCR_MUX(4);
-
-	PORTB->PCR[BACK_LEFT_WHEEL] &= ~PORT_PCR_MUX_MASK;
-	PORTB->PCR[BACK_LEFT_WHEEL] |= PORT_PCR_MUX(4);
+	PORTD->PCR[PTD1_Pin] &= ~PORT_PCR_MUX_MASK;
+	PORTD->PCR[PTD1_Pin] |= PORT_PCR_MUX(4);
 	
-	PORTB->PCR[BACK_RIGHT_WHEEL] &= ~PORT_PCR_MUX_MASK;
-	PORTB->PCR[BACK_RIGHT_WHEEL] |= PORT_PCR_MUX(4);
+	PORTD->PCR[PTD2_Pin] &= ~PORT_PCR_MUX_MASK;
+	PORTD->PCR[PTD2_Pin] |= PORT_PCR_MUX(4);
+	
+	PORTD->PCR[PTD3_Pin] &= ~PORT_PCR_MUX_MASK;
+	PORTD->PCR[PTD3_Pin] |= PORT_PCR_MUX(4);
 	
 	// Enable Clock Gating for Timer0 and Timer1
-	SIM->SCGC6 |=- SIM_SCGC6_TPM0_MASK;
-	SIM->SCGC6 |=- SIM_SCGC6_TPM1_MASK;
+	SIM->SCGC6 |= SIM_SCGC6_TPM0_MASK;
+	SIM->SCGC6 |= SIM_SCGC6_TPM1_MASK;
 	
 	// Select clock for TPM module
 	SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
@@ -100,27 +103,21 @@ void InitPWM(void)
 	TPM0->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
 	TPM0->SC &= ~(TPM_SC_CPWMS_MASK);
 	
-	/* Edge-Aligned PWM */
-	// Update SnC register: CMOD = 01, PS = 111 (128)
-	TPM0->SC &= ~((TPM_SC_CMOD_MASK) | (TPM_SC_PS_MASK));
-	TPM0->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
-	TPM0->SC |= (TPM_SC_CPWMS_MASK);
-	
-	// Enable PWM on TPM0 channel 0 -> PTB0
+	// Enable PWM on TPM0 Channel 0 -> PTD0
 	TPM0_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
 	TPM0_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
 	
-	// Enable PWM on TPM0 channel 2 -> PTB0
+	// Enable PWM on TPM0 Channel 1 -> PTD1
+	TPM0_C1SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+	TPM0_C1SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+	
+	// Enable PWM on TPM0 Channel 2 -> PTD2
 	TPM0_C2SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
 	TPM0_C2SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
 	
-	// Enable PWM on TPM0 channel 3 -> PTB0
+	// Enable PWM on TPM0 Channel 3 -> PTD3
 	TPM0_C3SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
 	TPM0_C3SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
-
-	// Enable PWM on TPM0 channel 5 -> PTB0
-	TPM0_C5SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
-  TPM0_C5SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
 }
 
 void InitGPIO(void)

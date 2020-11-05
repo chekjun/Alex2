@@ -127,10 +127,12 @@ void InitPWM(void)
 	TPM0_C3SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
 	TPM0_C3SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
 	
+	/*
 	TPM0_C0V = 0;
 	TPM0_C1V = 0;
 	TPM0_C2V = 0;
 	TPM0_C3V = 0;
+	*/
 }
 
 void motor() {
@@ -138,41 +140,41 @@ void motor() {
 	for (;;) {
 		osMessageQueueGet(rxq, &data, NULL, 0);
 		switch(data) {
-			case 1: //forward
+			case 1: // Forward
+				TPM0_C0V = 0;
+				TPM0_C1V = FREQUENCY_TO_MOD(50); // smaller mod value gives larger overall value means faster
+				TPM0_C2V = 0;
+				TPM0_C3V = FREQUENCY_TO_MOD(50);
+				break;
+			case 2: // Forward + Left
+				TPM0_C0V = 0;
+				TPM0_C1V = FREQUENCY_TO_MOD(50);
+				TPM0_C2V = 0;
+				TPM0_C3V = FREQUENCY_TO_MOD(100);
+				break;
+			case 3: // Forward + Right
 				TPM0_C0V = 0;
 				TPM0_C1V = FREQUENCY_TO_MOD(100);
 				TPM0_C2V = 0;
-				TPM0_C3V = FREQUENCY_TO_MOD(100);
+				TPM0_C3V = FREQUENCY_TO_MOD(50);
 				break;
-			case 2: //left
-				TPM0_C0V = FREQUENCY_TO_MOD(100);
+			case 4: // Backward
+				TPM0_C0V = FREQUENCY_TO_MOD(50);
 				TPM0_C1V = 0;
-				TPM0_C2V = 0;
-				TPM0_C3V = FREQUENCY_TO_MOD(100);
+				TPM0_C2V = FREQUENCY_TO_MOD(50);
+				TPM0_C3V = 0;
 				break;
-			case 3: //back
-				TPM0_C0V = FREQUENCY_TO_MOD(100);
+			case 5: // Backward + Left
+				TPM0_C0V = FREQUENCY_TO_MOD(50);
 				TPM0_C1V = 0;
 				TPM0_C2V = FREQUENCY_TO_MOD(100);
 				TPM0_C3V = 0;
 				break;
-			case 4: //right
-				TPM0_C0V = 0;
-				TPM0_C1V = FREQUENCY_TO_MOD(100);
-				TPM0_C2V = FREQUENCY_TO_MOD(100);
+			case 6: // Backward + Right
+				TPM0_C0V = FREQUENCY_TO_MOD(100);
+				TPM0_C1V = 0;
+				TPM0_C2V = FREQUENCY_TO_MOD(50);
 				TPM0_C3V = 0;
-				break;
-			case 5: //forward left
-				TPM0_C0V = 0;
-				TPM0_C1V = FREQUENCY_TO_MOD(50);
-				TPM0_C2V = 0;
-				TPM0_C3V = FREQUENCY_TO_MOD(50);
-				break;
-			case 6: //forward right
-				TPM0_C0V = 0;
-				TPM0_C1V = FREQUENCY_TO_MOD(50);
-				TPM0_C2V = 0;
-				TPM0_C3V = FREQUENCY_TO_MOD(50);
 				break;
 		}
 	}

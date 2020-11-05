@@ -2,18 +2,6 @@
 #include "MKL25Z4.h"
 #include "cmsis_os2.h"
 
-#define RED_LED 18 // PortB Pin 18
-#define GREEN_LED 19 // PortB Pin 19
-#define BLUE_LED 1 // PortD Pin 1
-#define MASK32(x) ((uint32_t)(1 << ((uint32_t)x))) // Changes all bits to 0 except x
-enum color_t {NONE, RED, GREEN, BLUE, CYAN, YELLOW, MAGENTA, WHITE};
-
-#define PTD0_Pin 0
-#define PTD1_Pin 1
-#define PTD2_Pin 2
-#define PTD3_Pin 3
-
-#define FREQUENCY_TO_MOD(x) (375000 / x)
 
 #define UART_TX_PORTE22 22
 #define UART_RX_PORTE23 23
@@ -32,6 +20,28 @@ enum color_t {NONE, RED, GREEN, BLUE, CYAN, YELLOW, MAGENTA, WHITE};
 volatile UINT errcode;
 volatile UCHAR errdata;
 volatile uint8_t global_rx = 0x0;
+
+
+#define RED_LED 18 // PortB Pin 18
+#define GREEN_LED 19 // PortB Pin 19
+#define BLUE_LED 1 // PortD Pin 1
+#define MASK32(x) ((uint32_t)(1 << ((uint32_t)x))) // Changes all bits to 0 except x
+enum color_t {NONE, RED, GREEN, BLUE, CYAN, YELLOW, MAGENTA, WHITE};
+
+
+// LED Pins
+// #define GREEN_LED 1
+// #define RED_LED 2
+
+
+// PWM Pins
+#define SPEAKER 0
+#define PTD0_Pin 0
+#define PTD1_Pin 1
+#define PTD2_Pin 2
+#define PTD3_Pin 3
+
+#define FREQUENCY_TO_MOD(x) (375000 / x)
 
 
 osMessageQueueId_t txq;
@@ -74,12 +84,80 @@ void led_control(enum color_t color) {
 	}
 }
 
-/* initPWM() */
+void InitUART2(uint32_t baud_rate) {
+	uint32_t divisor, bus_clock;
+	
+  SIM->SCGC4 |= SIM_SCGC4_UART2_MASK;
+	SIM->SCGC5 |= SIM_SCGC5_PORTE_MASK;
+	
+	PORTE->PCR[UART_TX_PORTE22] &= ~PORT_PCR_MUX_MASK;
+	PORTE->PCR[UART_TX_PORTE22] |= PORT_PCR_MUX(4);
+	
+	PORTE->PCR[UART_RX_PORTE23] &= ~PORT_PCR_MUX_MASK;
+	PORTE->PCR[UART_RX_PORTE23] |= PORT_PCR_MUX(4);
+	
+	UART2->C2 &= ~((UART_C2_TE_MASK) | (UART_C2_RE_MASK));
+	
+	bus_clock = (DEFAULT_SYSTEM_CLOCK)/2;
+	divisor = bus_clock / (baud_rate * 16);
+	UART2->BDH = UART_BDH_SBR(divisor >> 8); // also set stop bit to 1 and disable extra interrupts
+	UART2->BDL = UART_BDL_SBR(divisor);
+	
+	UART2->C1 = 0; // disable parity, set 8 bits, lsb first 
+	UART2->S2 = 0;
+	UART2->C3 = 0;
+  
+	//UART2->C2 &= ~UART_C2_TIE_MASK; // we do not need to transmit
+  UART2->C2 |= UART_C2_RE_MASK | UART_C2_TE_MASK;
+	
+  NVIC_SetPriority(UART2_IRQn, UART2_INT_PRIO);
+  NVIC_ClearPendingIRQ(UART2_IRQn);
+	NVIC_EnableIRQ(UART2_IRQn);
+	UART2->C2 |= UART_C2_RIE_MASK;
+}
+
+void InitGPIO(void)
+{
+	// Enable Clock to PORTB and PORTD
+	SIM->SCGC5 |= ((SIM_SCGC5_PORTB_MASK) | (SIM_SCGC5_PORTD_MASK));
+	// Configure MUX settings to make all 3 pins GPIO
+	PORTB->PCR[RED_LED] &= ~PORT_PCR_MUX_MASK;
+	PORTB->PCR[RED_LED] |= PORT_PCR_MUX(1);
+	PORTB->PCR[GREEN_LED] &= ~PORT_PCR_MUX_MASK;
+	PORTB->PCR[GREEN_LED] |= PORT_PCR_MUX(1);
+	PORTD->PCR[BLUE_LED] &= ~PORT_PCR_MUX_MASK;
+	PORTD->PCR[BLUE_LED] |= PORT_PCR_MUX(1);
+	// Set Data Direction Registers for PortB and PortD
+	PTB->PDDR |= (MASK32(RED_LED) | MASK32(GREEN_LED));
+	PTD->PDDR |= MASK32(BLUE_LED);
+}
+
+// USE THIS FUNCTION ONCE THE RGB IS NOT NEEDED
+/*
+void InitGPIO(void)
+{
+    // Enable Clock to PORTC
+    SIM->SCGC5 |= SIM_SCGC5_PORTC_MASK;
+    // Configure MUX settings to make 2 pins GPIO
+    PORTC->PCR[GREEN_LED] &= ~PORT_PCR_MUX_MASK;
+    PORTC->PCR[GREEN_LED] |= PORT_PCR_MUX(1);
+    PORTC->PCR[RED_LED] &= ~PORT_PCR_MUX_MASK;
+    PORTC->PCR[RED_LED] |= PORT_PCR_MUX(1);
+    // Set Data Direction Registers for PortC
+		PTC->PDDR |= MASK32(GREEN_LED);
+	  PTC->PDDR |= MASK32(RED_LED);
+}
+*/
+
 void InitPWM(void)
 {
 	// Enable Clock Gating for PORTB and PORTD
 	SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;
 	SIM_SCGC5 |= SIM_SCGC5_PORTD_MASK;
+	
+	// Configure Mode 3 for the PWM pin operation
+	PORTB->PCR[SPEAKER] &= ~PORT_PCR_MUX_MASK;
+	PORTB->PCR[SPEAKER] |= PORT_PCR_MUX(3);
 	
 	// Configure Mode 4 for the PWM pin operation
 	PORTD->PCR[PTD0_Pin] &= ~PORT_PCR_MUX_MASK;
@@ -103,7 +181,7 @@ void InitPWM(void)
 	SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1); // MCGCLLCLK or  MCGLLCLK/2
 	
 	// Set Modulo Value 20971520 / 128 = 163840 / 3276 = 50 Hz
-	TPM0->MOD = 7500;
+	TPM0->MOD = FREQUENCY_TO_MOD(50);
 	
 	/* Edge-Aligned PWM */
 	// Update SnC register: CMOD = 01, PS = 111 (128)
@@ -127,12 +205,9 @@ void InitPWM(void)
 	TPM0_C3SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
 	TPM0_C3SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
 	
-	/*
-	TPM0_C0V = 0;
-	TPM0_C1V = 0;
-	TPM0_C2V = 0;
-	TPM0_C3V = 0;
-	*/
+	// Enable PWM on TPM1 Channel 0 -> PTB0
+	TPM1_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+	TPM1_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
 }
 
 void motor() {
@@ -182,55 +257,6 @@ void motor() {
 
 void playSound() {
 	
-}
-
-void InitGPIO(void)
-{
-	// Enable Clock to PORTB and PORTD
-	SIM->SCGC5 |= ((SIM_SCGC5_PORTB_MASK) | (SIM_SCGC5_PORTD_MASK));
-	// Configure MUX settings to make all 3 pins GPIO
-	PORTB->PCR[RED_LED] &= ~PORT_PCR_MUX_MASK;
-	PORTB->PCR[RED_LED] |= PORT_PCR_MUX(1);
-	PORTB->PCR[GREEN_LED] &= ~PORT_PCR_MUX_MASK;
-	PORTB->PCR[GREEN_LED] |= PORT_PCR_MUX(1);
-	PORTD->PCR[BLUE_LED] &= ~PORT_PCR_MUX_MASK;
-	PORTD->PCR[BLUE_LED] |= PORT_PCR_MUX(1);
-	// Set Data Direction Registers for PortB and PortD
-	PTB->PDDR |= (MASK32(RED_LED) | MASK32(GREEN_LED));
-	PTD->PDDR |= MASK32(BLUE_LED);
-}
-
-void InitUART2(uint32_t baud_rate) {
-	uint32_t divisor, bus_clock;
-	
-  SIM->SCGC4 |= SIM_SCGC4_UART2_MASK;
-	SIM->SCGC5 |= SIM_SCGC5_PORTE_MASK;
-	
-	PORTE->PCR[UART_TX_PORTE22] &= ~PORT_PCR_MUX_MASK;
-	PORTE->PCR[UART_TX_PORTE22] |= PORT_PCR_MUX(4);
-	
-	PORTE->PCR[UART_RX_PORTE23] &= ~PORT_PCR_MUX_MASK;
-	PORTE->PCR[UART_RX_PORTE23] |= PORT_PCR_MUX(4);
-	
-	UART2->C2 &= ~((UART_C2_TE_MASK) | (UART_C2_RE_MASK));
-	
-	bus_clock = (DEFAULT_SYSTEM_CLOCK)/2;
-	divisor = bus_clock / (baud_rate * 16);
-	UART2->BDH = UART_BDH_SBR(divisor >> 8); // also set stop bit to 1 and disable extra interrupts
-	UART2->BDL = UART_BDL_SBR(divisor);
-	
-	UART2->C1 = 0; // disable parity, set 8 bits, lsb first 
-	UART2->S2 = 0;
-	UART2->C3 = 0;
-  
-	//UART2->C2 &= ~UART_C2_TIE_MASK; // we do not need to transmit
-  UART2->C2 |= UART_C2_RE_MASK | UART_C2_TE_MASK;
-	
-  NVIC_SetPriority(UART2_IRQn, UART2_INT_PRIO);
-  NVIC_ClearPendingIRQ(UART2_IRQn);
-	NVIC_EnableIRQ(UART2_IRQn);
-	UART2->C2 |= UART_C2_RIE_MASK;
-
 }
 
 // flags cleared after reading UART2->S1 and UART2->D
@@ -359,20 +385,22 @@ void comms_test_thread(void *argument) {
 }
 
 int main(void) {
-		InitGPIO();
-		InitUART2(BAUD_RATE);
-	InitPWM();
-    SystemCoreClockUpdate();
-		
-		osKernelInitialize();
-		mySem = osSemaphoreNew(1, 0, NULL);
-		led_control(YELLOW);
-		txq = osMessageQueueNew(Q_SIZE, sizeof(UCHAR), NULL);
-		rxq = osMessageQueueNew(Q_SIZE, sizeof(UCHAR), NULL);
-		LED = osMessageQueueNew(Q_SIZE, sizeof(_Bool), NULL);
-		music = osMessageQueueNew(Q_SIZE, sizeof(_Bool), NULL);
-		osThreadNew(comms_test_thread, NULL, NULL);
-		osThreadNew(motor, NULL, NULL);
-		osKernelStart();
+    // System Initialization
+	  SystemCoreClockUpdate();
+
+	  InitUART2(BAUD_RATE);
+	  InitGPIO();
+	  InitPWM();
+
+	  osKernelInitialize();
+	  mySem = osSemaphoreNew(1, 0, NULL);
+	  led_control(YELLOW);
+	  txq = osMessageQueueNew(Q_SIZE, sizeof(UCHAR), NULL);
+	  rxq = osMessageQueueNew(Q_SIZE, sizeof(UCHAR), NULL);
+	  LED = osMessageQueueNew(Q_SIZE, sizeof(_Bool), NULL);
+	  music = osMessageQueueNew(Q_SIZE, sizeof(_Bool), NULL);
+	  osThreadNew(comms_test_thread, NULL, NULL);
+	  osThreadNew(motor, NULL, NULL);
+	  osKernelStart();
 		for (;;);
 }

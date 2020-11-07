@@ -18,6 +18,8 @@
 // movement settings
 #define MOVE_DUR 200
 
+#define LED_DUR 200
+
 void tBrain(void *argument);
 void tMotor(void *argument);
 void tLED(void *argument);
@@ -26,6 +28,7 @@ void tAudio(void *argument);
 
 osEventFlagsId_t flags;
 osMessageQueueId_t moveq;
+uint8_t green_leds[] = {0, 0, 0, 0, 0, 0, 0, 0}; // TODO
 
 int main(void) {
     // System Initialization
@@ -114,7 +117,7 @@ void tMotor(void *argument) {
           break;
       }
     } else { // no command received, stop
-      osEventFlagsSet(flags, FLAG_CLEAR);
+      osEventFlagsClear(flags, FLAG_MOVE);
       TPM0_C0V = FREQUENCY_TO_MOD(100);
       TPM0_C1V = 0;
       TPM0_C2V = FREQUENCY_TO_MOD(50);
@@ -133,5 +136,16 @@ void tAudio(void *argument) {
 
 
 void tLED(void *argument) {
-	
+	uint8_t idx = 0;
+  for (;;) { // TODO add CONN condition
+    if (osEventFlagsWait(flags, FLAG_MOVE, osFlagsNoClear, LED_DUR) 
+        == osFlagsErrorTimeout) { // not moving
+      // turn on green LEDs
+      // set red LEDs to flash faster (maybe we need another task)
+    } else {
+      // turn off green_led[idx]
+      idx = (idx + 1) % (sizeof(arr) / sizeof(arr[0]));
+      // turn on green_led[idx]
+    }
+  }
 }

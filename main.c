@@ -21,7 +21,18 @@
 // movement settings
 #define MOVE_DUR 200
 
+// song lengths
+#define SONG_LEN 8
+#define CONNSONG_LEN 1
+#define ENDSONG_LEN 1
+
 uint8_t green_leds[] = {0, 0, 0, 0, 0, 0, 0, 0}; // TODO
+uint32_t song_notes[SONG_LEN] = {NOTE_C, NOTE_D, NOTE_E, NOTE_F, NOTE_G, NOTE_A, NOTE_B};
+uint32_t song_dur[SONG_LEN] = {DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART};
+uint32_t conn_notes[CONNSONG_LEN] = {0};
+uint32_t conn_dur[CONNSONG_LEN] = {0};
+uint32_t end_notes[ENDSONG_LEN] = {0};
+uint32_t end_dur[ENDSONG_LEN] = {0};
 
 void tBrain(void *argument);
 void tMotor(void *argument);
@@ -57,8 +68,8 @@ int main(void) {
 	  SystemCoreClockUpdate();
 
 	  InitUART2(BAUD_RATE);
-	  InitGPIO();
-	  InitPWM();
+	  InitMotor();
+	  InitAudio();
 
 	  osKernelInitialize();
 	  led_control(YELLOW);
@@ -70,7 +81,7 @@ int main(void) {
 		red_led_mutex = osMutexNew(&mutex_inherit);
 		audio_mutex = osMutexNew(&mutex_inherit);
 
-    osThreadNew(tBrain, NULL, &thread_highprio); 
+    osThreadNew(tBrain, NULL, NULL); 
     osThreadNew(tEvent, NULL, &thread_midprio); 
 		osThreadNew(tAudio, NULL, NULL);
     osThreadNew(tLED, NULL, NULL);
@@ -167,8 +178,15 @@ void tEvent(void *argument) {
 }
 
 void tAudio(void *argument) {
+	uint32_t idx = 0;
 	for (;;) {
-		// TODO play each note of tune, acquire and release mutex each time
+		osMutexAcquire(audio_mutex, osWaitForever);
+		stop_music();
+		osDelay(100);
+		play_note(song_notes[idx]);
+		osMutexRelease(audio_mutex);
+		osDelay(song_dur[idx]);
+		idx = (idx + 1) % SONG_LEN;
 	}
 }
 

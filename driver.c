@@ -39,7 +39,7 @@ void InitUART2(uint32_t baud_rate) {
   UART2->C2 |= UART_C2_RIE_MASK;
 }
 
-void InitGPIO(void) {
+void InitBoardLED(void) {
   // Enable Clock to PORTB and PORTD
   SIM->SCGC5 |= ((SIM_SCGC5_PORTB_MASK) | (SIM_SCGC5_PORTD_MASK));
   // Configure MUX settings to make all 3 pins GPIO
@@ -54,7 +54,11 @@ void InitGPIO(void) {
   PTD->PDDR |= MASK32(BLUE_LED);
 }
 
-void InitPWM(void) {
+void InitExtLED(void) {
+  // TODO @chekjun
+}
+
+void InitMotor(void) {
   // Enable Clock Gating for PORTB and PORTD
   SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;
   SIM_SCGC5 |= SIM_SCGC5_PORTD_MASK;
@@ -112,6 +116,21 @@ void InitPWM(void) {
   // Enable PWM on TPM1 Channel 0 -> PTB0
   TPM1_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
   TPM1_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+}
+
+void InitAudio(void) {
+  SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;
+
+  PORTB->PCR[SPEAKER] &= ~PORT_PCR_MUX_MASK;
+  PORTB->PCR[SPEAKER] |= PORT_PCR_MUX(3);
+
+	SIM->SCGC6 |= SIM_SCGC6_TPM1_MASK;
+  SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
+  SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1);
+	
+  TPM1->SC &= ~((TPM_SC_CMOD_MASK) | (TPM_SC_PS_MASK));
+  TPM1->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
+  TPM1->SC &= ~(TPM_SC_CPWMS_MASK); 
 }
 
 // flags cleared after reading UART2->S1 and UART2->D
@@ -172,6 +191,21 @@ void led_control(enum color_t color) {
     case WHITE:
       break;
   }
+}
+
+void play_note(uint32_t freq) {
+  TPM1_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | 
+      (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+  uint32_t mod = 48E6 / (128 * freq);
+  TPM1->MOD = mod;
+  TPM1_C0V = mod / 2;
+	TPM1_CNT = 0; 
+	TPM1_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+}
+
+void stop_music(void) {
+	TPM1_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | 
+      (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
 }
 
 // move len bytes from queue to buf, return number of bytes moved

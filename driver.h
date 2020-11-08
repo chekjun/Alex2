@@ -27,9 +27,28 @@ enum color_t {NONE, RED, GREEN, BLUE, CYAN, YELLOW, MAGENTA, WHITE};
 
 #define FREQUENCY_TO_MOD(x) (375000 / x)
 
+// notes
+#define NOTE_C 262
+#define NOTE_D 294
+#define NOTE_E 330
+#define NOTE_F 349
+#define NOTE_G 392
+#define NOTE_A 440
+#define NOTE_B 494
+
+// durations
+#define DUR_FULL 1000
+#define DUR_HALF (DUR_FULL/2)
+#define DUR_QUART (DUR_FULL/4)
+
 // driver functions
 void InitUART2(uint32_t baud_rate);
-void InitGPIO(void);
-void InitPWM(void);
+void InitBoardLED(void);
+void InitExtLED(void);
+void InitMotor(void);
+void InitAudio(void);
+
+void play_note(uint32_t freq);
+void stop_music(void);
 void led_control(enum color_t color);
 UINT uart_rx(UCHAR *buf, UINT len);

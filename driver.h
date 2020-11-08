@@ -1,6 +1,4 @@
-#include "RTE_Components.h"
-#include "MKL25Z4.h"
-#include "cmsis_os2.h"
+#include <stdint.h>
 
 #define UART_TX_PORTE22 22
 #define UART_RX_PORTE23 23
@@ -28,10 +26,6 @@ enum color_t {NONE, RED, GREEN, BLUE, CYAN, YELLOW, MAGENTA, WHITE};
 #define PTD3_Pin 3
 
 #define FREQUENCY_TO_MOD(x) (375000 / x)
-
-osMessageQueueId_t rxq;
-volatile UINT errcode;
-volatile UCHAR errdata;
 
 // driver functions
 void InitUART2(uint32_t baud_rate);

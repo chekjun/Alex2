@@ -1,4 +1,11 @@
+#include "RTE_Components.h"
+#include "MKL25Z4.h"
+#include "cmsis_os2.h"
 #include "driver.h"
+
+extern osMessageQueueId_t rxq;
+extern UINT errcode;
+extern UCHAR errdata;
 
 void InitUART2(uint32_t baud_rate) {
   uint32_t divisor, bus_clock;

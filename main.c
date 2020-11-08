@@ -1,3 +1,6 @@
+#include "RTE_Components.h"
+#include "MKL25Z4.h"
+#include "cmsis_os2.h"
 #include "driver.h"
 
 // UART settings
@@ -25,6 +28,11 @@ void tMotor(void *argument);
 void tLED(void *argument);
 void tEvent(void *argument);
 void tAudio(void *argument);
+
+// vars for driver
+osMessageQueueId_t rxq;
+volatile UINT errcode;
+volatile UCHAR errdata;
 
 osEventFlagsId_t flags;
 osMessageQueueId_t moveq;
@@ -171,7 +179,7 @@ void tLED(void *argument) {
 		osMutexAcquire(red_led_mutex, osWaitForever);
     if (osEventFlagsWait(flags, FLAG_MOVE, osFlagsNoClear, 0) 
         == osOK) { // moving
-      // turn off green_leds[idx]
+      // turn off green_leds[idx]/turn off all greens
       idx = (idx + 1) % (sizeof(green_leds) / sizeof(green_leds[0]));
       // turn on green_leds[idx]
 			// toggle red LEDs

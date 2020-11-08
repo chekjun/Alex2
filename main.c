@@ -18,17 +18,31 @@
 // movement settings
 #define MOVE_DUR 200
 
-#define LED_DUR 200
+uint8_t green_leds[] = {0, 0, 0, 0, 0, 0, 0, 0}; // TODO
 
 void tBrain(void *argument);
 void tMotor(void *argument);
 void tLED(void *argument);
-void tEventAudio(void *argument);
+void tEvent(void *argument);
 void tAudio(void *argument);
 
 osEventFlagsId_t flags;
 osMessageQueueId_t moveq;
-uint8_t green_leds[] = {0, 0, 0, 0, 0, 0, 0, 0}; // TODO
+osMutexId_t green_led_mutex;
+osMutexId_t red_led_mutex;
+osMutexId_t audio_mutex;
+
+const osThreadAttr_t thread_highprio = {
+	.priority = osPriorityHigh
+};
+
+const osThreadAttr_t thread_midprio = {
+	.priority = osPriorityAboveNormal
+};
+
+const osMutexAttr_t mutex_inherit = {
+	.attr_bits = osMutexRecursive
+};
 
 int main(void) {
     // System Initialization
@@ -44,11 +58,14 @@ int main(void) {
     flags = osEventFlagsNew(NULL);
 	  rxq = osMessageQueueNew(Q_SIZE, sizeof(UCHAR), NULL);
 	  moveq = osMessageQueueNew(Q_SIZE, sizeof(UCHAR), NULL);
+		green_led_mutex = osMutexNew(&mutex_inherit);
+		red_led_mutex = osMutexNew(&mutex_inherit);
+		audio_mutex = osMutexNew(&mutex_inherit);
 
-    osThreadNew(tBrain, NULL, NULL); // TODO give high prio
-    osThreadNew(tEventAudio, NULL, NULL); // TODO give high prio
+    osThreadNew(tBrain, NULL, &thread_highprio); 
+    osThreadNew(tEvent, NULL, &thread_midprio); 
+		osThreadNew(tAudio, NULL, NULL);
     osThreadNew(tLED, NULL, NULL);
-	  osThreadNew(tAudio, NULL, NULL);
 	  osThreadNew(tMotor, NULL, NULL);
 
 	  osKernelStart();
@@ -76,7 +93,7 @@ void tBrain(void *argument) {
 void tMotor(void *argument) {
 	UCHAR data;
 	for (;;) {
-    if (osMessageQueueGet(moveq, &data, NULL, MOVEDUR) == osOK) {
+    if (osMessageQueueGet(moveq, &data, NULL, MOVE_DUR) == osOK) {
       osEventFlagsSet(flags, FLAG_MOVE);
       switch(data) { // TODO reorganise
         case 1: // Forward
@@ -126,26 +143,47 @@ void tMotor(void *argument) {
 	}
 }
 
-void tEventAudio(void *argument) {
-	
+void tEvent(void *argument) {
+	uint32_t events = osEventFlagsWait(flags, FLAG_CONN | FLAG_END, NULL, osWaitForever);
+	if (events & FLAG_CONN) {
+		osMutexAcquire(green_led_mutex, osWaitForever);		
+		osMutexAcquire(audio_mutex, osWaitForever);
+		// TODO flash green LEDs twice and play conn tune
+		osMutexRelease(audio_mutex);
+		osMutexRelease(green_led_mutex);
+	} else if (events & FLAG_END) {
+		osMutexAcquire(audio_mutex, osWaitForever);
+		// TODO play end tune
+		osMutexRelease(audio_mutex);
+	}
 }
 
 void tAudio(void *argument) {
-	
+	for (;;) {
+		// TODO play each note of tune, acquire and release mutex each time
+	}
 }
-
 
 void tLED(void *argument) {
 	uint8_t idx = 0;
-  for (;;) { // TODO add CONN condition
-    if (osEventFlagsWait(flags, FLAG_MOVE, osFlagsNoClear, LED_DUR) 
-        == osFlagsErrorTimeout) { // not moving
-      // turn on green LEDs
-      // set red LEDs to flash faster (maybe we need another task)
+  for (;;) {
+		osMutexAcquire(green_led_mutex, osWaitForever);
+		osMutexAcquire(red_led_mutex, osWaitForever);
+    if (osEventFlagsWait(flags, FLAG_MOVE, osFlagsNoClear, 0) 
+        == osOK) { // moving
+      // turn off green_leds[idx]
+      idx = (idx + 1) % (sizeof(green_leds) / sizeof(green_leds[0]));
+      // turn on green_leds[idx]
+			// toggle red LEDs
+			osMutexRelease(green_led_mutex);
+			osMutexRelease(red_led_mutex);
+			osDelay(250);
     } else {
-      // turn off green_led[idx]
-      idx = (idx + 1) % (sizeof(arr) / sizeof(arr[0]));
-      // turn on green_led[idx]
+			// turn on green LEDs
+      // toggle red LEDs
+			osMutexRelease(green_led_mutex);
+			osMutexRelease(red_led_mutex);
+			osDelay(500);
     }
   }
 }

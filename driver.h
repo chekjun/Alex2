@@ -27,14 +27,21 @@ enum color_t {NONE, RED, GREEN, BLUE, CYAN, YELLOW, MAGENTA, WHITE};
 
 #define FREQUENCY_TO_MOD(x) (375000 / x)
 
-// notes
-#define NOTE_C 262
-#define NOTE_D 294
-#define NOTE_E 330
-#define NOTE_F 349
-#define NOTE_G 392
-#define NOTE_A 440
-#define NOTE_B 494
+// notes from https://pages.mtu.edu/~suits/notefreq432.html
+#define NOTE_C4	256
+#define NOTE_D4	288
+#define NOTE_E4	323
+#define NOTE_F4	342
+#define NOTE_G4	384
+#define NOTE_A4	432
+#define NOTE_B4	484
+#define NOTE_C5	513
+#define NOTE_D5	576
+#define NOTE_E5	647
+#define NOTE_F5	685
+#define NOTE_G5	769
+#define NOTE_A5	864	
+#define NOTE_B5	969
 
 // durations
 #define DUR_FULL 1000

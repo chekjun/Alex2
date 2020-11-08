@@ -139,7 +139,6 @@ void UART2_IRQHandler(void) {
 
   UCHAR S1 = UART2->S1; // to prevent any part from clearing S1
   uint8_t currdata = UART2->D;
-  UCHAR d;
   if (S1 & UART_S1_RDRF_MASK) {
     // received a character
     if (osMessageQueuePut(rxq, &currdata, 0, 0) == osOK) {

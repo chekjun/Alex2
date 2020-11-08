@@ -22,13 +22,14 @@
 #define MOVE_DUR 200
 
 // song lengths
-#define SONG_LEN 8
+#define SONG_LEN 9
 #define CONNSONG_LEN 1
 #define ENDSONG_LEN 1
 
 uint8_t green_leds[] = {0, 0, 0, 0, 0, 0, 0, 0}; // TODO
-uint32_t song_notes[SONG_LEN] = {NOTE_C, NOTE_D, NOTE_E, NOTE_F, NOTE_G, NOTE_A, NOTE_B};
-uint32_t song_dur[SONG_LEN] = {DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART};
+// uint32_t song_notes[SONG_LEN] = {NOTE_C5, NOTE_E5, NOTE_F4, NOTE_G4, NOTE_C5, NOTE_E5, NOTE_F4, NOTE_G4};
+uint32_t song_notes[SONG_LEN] = {NOTE_F4, NOTE_E4, NOTE_F4, NOTE_D4, NOTE_E4, NOTE_C4, NOTE_D4, NOTE_D4, 0};
+uint32_t song_dur[SONG_LEN] = {DUR_HALF, DUR_HALF, DUR_HALF, DUR_HALF, DUR_HALF, DUR_HALF, DUR_HALF, DUR_HALF, DUR_FULL};
 uint32_t conn_notes[CONNSONG_LEN] = {0};
 uint32_t conn_dur[CONNSONG_LEN] = {0};
 uint32_t end_notes[ENDSONG_LEN] = {0};
@@ -68,6 +69,7 @@ int main(void) {
 	  SystemCoreClockUpdate();
 
 	  InitUART2(BAUD_RATE);
+		InitBoardLED(); // TODO remove when not needed
 	  InitMotor();
 	  InitAudio();
 

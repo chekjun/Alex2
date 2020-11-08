@@ -135,9 +135,9 @@ void tMotor(void *argument) {
       }
     } else { // no command received, stop
       osEventFlagsClear(flags, FLAG_MOVE);
-      TPM0_C0V = FREQUENCY_TO_MOD(100);
+      TPM0_C0V = 0;
       TPM0_C1V = 0;
-      TPM0_C2V = FREQUENCY_TO_MOD(50);
+      TPM0_C2V = 0;
       TPM0_C3V = 0;
     }
 	}

@@ -127,50 +127,24 @@ void tMotor(void *argument) {
 	for (;;) {
     if (osMessageQueueGet(moveq, &data, NULL, MOVE_DUR) == osOK) {
       osEventFlagsSet(flags, FLAG_MOVE);
-      switch(data) { // TODO reorganise
-        case 1: // Forward
-          TPM0_C0V = 0;
-          TPM0_C1V = FREQUENCY_TO_MOD(50); // smaller mod value gives larger overall value means faster
-          TPM0_C2V = 0;
-          TPM0_C3V = FREQUENCY_TO_MOD(50);
-          break;
-        case 2: // Forward + Left
-          TPM0_C0V = 0;
-          TPM0_C1V = FREQUENCY_TO_MOD(50);
-          TPM0_C2V = 0;
-          TPM0_C3V = FREQUENCY_TO_MOD(100);
-          break;
-        case 3: // Forward + Right
-          TPM0_C0V = 0;
-          TPM0_C1V = FREQUENCY_TO_MOD(100);
-          TPM0_C2V = 0;
-          TPM0_C3V = FREQUENCY_TO_MOD(50);
-          break;
-        case 4: // Backward
-          TPM0_C0V = FREQUENCY_TO_MOD(50);
-          TPM0_C1V = 0;
-          TPM0_C2V = FREQUENCY_TO_MOD(50);
-          TPM0_C3V = 0;
-          break;
-        case 5: // Backward + Left
-          TPM0_C0V = FREQUENCY_TO_MOD(50);
-          TPM0_C1V = 0;
-          TPM0_C2V = FREQUENCY_TO_MOD(100);
-          TPM0_C3V = 0;
-          break;
-        case 6: // Backward + Right
-          TPM0_C0V = FREQUENCY_TO_MOD(100);
-          TPM0_C1V = 0;
-          TPM0_C2V = FREQUENCY_TO_MOD(50);
-          TPM0_C3V = 0;
-          break;
-      }
+      switch(data) {
+				case CMD_W:
+					motor_control(FORWARDS);
+					break;
+				case CMD_A:
+					motor_control(TURN_LEFT);
+					break;
+				case CMD_S:
+					motor_control(BACKWARDS);
+					break;
+				case CMD_D:
+					motor_control(TURN_RIGHT);
+					break;
+				// TODO @chekjun
+			}
     } else { // no command received, stop
       osEventFlagsClear(flags, FLAG_MOVE);
-      TPM0_C0V = 0;
-      TPM0_C1V = 0;
-      TPM0_C2V = 0;
-      TPM0_C3V = 0;
+			motor_control(STOP);
     }
 	}
 }
@@ -200,9 +174,24 @@ void tEventAudio(void *argument) {
 
 void tEventLED(void *argument) {
 	uint32_t events = osThreadFlagsWait(FLAG_CONN, NULL, osWaitForever);
-	if (events & FLAG_CONN) {
+	if (events & FLAG_CONN) { // flash green leds
 		osMutexAcquire(green_led_mutex, osWaitForever);		
-		// TODO flash green LEDs twice
+		for (uint32_t i = 0; i < sizeof(green_leds); ++i) {
+				led_on_green(green_leds[i]);
+		}
+		osDelay(250);
+		for (uint32_t i = 0; i < sizeof(green_leds); ++i) {
+				led_off_green(green_leds[i]);
+		}
+		osDelay(250);
+		for (uint32_t i = 0; i < sizeof(green_leds); ++i) {
+				led_on_green(green_leds[i]);
+		}
+		osDelay(250);
+		for (uint32_t i = 0; i < sizeof(green_leds); ++i) {
+				led_off_green(green_leds[i]);
+		}
+		osDelay(250);
 		osMutexRelease(green_led_mutex);
 	}
 }
@@ -227,16 +216,18 @@ void tLED(void *argument) {
 		osMutexAcquire(red_led_mutex, osWaitForever);
     if (osEventFlagsWait(flags, FLAG_MOVE, osFlagsNoClear, 0) 
         == osOK) { // moving
-      // turn off green_leds[idx]/turn off all greens
+			led_off_green(green_leds[idx]);
       idx = (idx + 1) % (sizeof(green_leds) / sizeof(green_leds[0]));
-      // turn on green_leds[idx]
-			// toggle red LEDs
+      led_on_green(green_leds[idx]);
+			led_toggle_red();
 			osMutexRelease(green_led_mutex);
 			osMutexRelease(red_led_mutex);
 			osDelay(250);
-    } else {
-			// turn on green LEDs
-      // toggle red LEDs
+    } else { // stationary
+			for (uint32_t i = 0; i < sizeof(green_leds); ++i) {
+				led_on_green(green_leds[i]);
+			}
+      led_toggle_red();
 			osMutexRelease(green_led_mutex);
 			osMutexRelease(red_led_mutex);
 			osDelay(500);

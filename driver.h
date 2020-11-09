@@ -1,9 +1,5 @@
 #include <stdint.h>
 
-#define UART_TX_PORTE22 22
-#define UART_RX_PORTE23 23
-#define UART2_INT_PRIO 0
-
 #define UCHAR unsigned char // byte
 #define UINT unsigned int // word
 
@@ -12,22 +8,11 @@
 #define ERR_QEMPTY 2
 #define ERR_UARTERR 3
 
-#define RED_LED 18 // PortB Pin 18
-#define GREEN_LED 19 // PortB Pin 19
-#define BLUE_LED 1 // PortD Pin 1
-#define MASK32(x) ((uint32_t)(1 << ((uint32_t)x))) // Changes all bits to 0 except x
 enum color_t {NONE, RED, GREEN, BLUE, CYAN, YELLOW, MAGENTA, WHITE};
 
-// PWM Pins
-#define SPEAKER 0
-#define PTD0_Pin 0
-#define PTD1_Pin 1
-#define PTD2_Pin 2
-#define PTD3_Pin 3
+enum move_t {STOP, FORWARDS, BACKWARDS, CURVE_LEFT, CURVE_RIGHT, TURN_LEFT, TURN_RIGHT};
 
-#define FREQUENCY_TO_MOD(x) (375000 / x)
-
-// notes from https://pages.mtu.edu/~suits/notefreq432.html
+// note frequencies from https://pages.mtu.edu/~suits/notefreq432.html
 #define NOTE_C4	256
 #define NOTE_D4	288
 #define NOTE_E4	323
@@ -61,4 +46,9 @@ void InitAudio(void);
 void play_note(uint32_t freq);
 void stop_music(void);
 void led_control(enum color_t color);
+void motor_control(enum move_t move);
 UINT uart_rx(UCHAR *buf, UINT len);
+
+void led_toggle_red(void);
+void led_on_green(uint32_t pin);
+void led_off_green(uint32_t pin);

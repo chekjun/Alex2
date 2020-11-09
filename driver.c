@@ -3,6 +3,28 @@
 #include "cmsis_os2.h"
 #include "driver.h"
 
+#define UART_TX_PORTE22 22
+#define UART_RX_PORTE23 23
+#define UART2_INT_PRIO 0
+
+#define RED_LED 18 // PortB Pin 18
+#define GREEN_LED 19 // PortB Pin 19
+#define BLUE_LED 1 // PortD Pin 1
+#define MASK32(x) ((uint32_t)(1 << ((uint32_t)x))) // Changes all bits to 0 except x
+
+// PWM Pins
+#define SPEAKER 0
+#define PTD0_Pin 0
+#define PTD1_Pin 1
+#define PTD2_Pin 2
+#define PTD3_Pin 3
+
+// Movement
+// smaller oveflow value => higher duty cycle => faster
+#define FREQUENCY_TO_MOD(x) (375000 / x)
+#define MOTOR_SLOW (375000 / 100)
+#define MOTOR_FAST (375000 / 50)
+
 extern osMessageQueueId_t rxq;
 extern UINT errcode;
 extern UCHAR errdata;
@@ -192,6 +214,54 @@ void led_control(enum color_t color) {
   }
 }
 
+void motor_control(enum move_t move) {
+	switch(move) { // TODO reorganise
+		case STOP:
+			TPM0_C0V = 0;
+      TPM0_C1V = 0;
+      TPM0_C2V = 0;
+      TPM0_C3V = 0;
+			break;
+		case FORWARDS: // Forward
+			TPM0_C0V = 0;
+			TPM0_C1V = FREQUENCY_TO_MOD(50); 
+			TPM0_C2V = 0;
+			TPM0_C3V = FREQUENCY_TO_MOD(50);
+			break;
+		case CURVE_LEFT: // Forward + Left
+			TPM0_C0V = 0;
+			TPM0_C1V = FREQUENCY_TO_MOD(50);
+			TPM0_C2V = 0;
+			TPM0_C3V = FREQUENCY_TO_MOD(100);
+			break;
+		case CURVE_RIGHT: // Forward + Right
+			TPM0_C0V = 0;
+			TPM0_C1V = FREQUENCY_TO_MOD(100);
+			TPM0_C2V = 0;
+			TPM0_C3V = FREQUENCY_TO_MOD(50);
+			break;
+		case BACKWARDS: // Backward
+			TPM0_C0V = FREQUENCY_TO_MOD(50);
+			TPM0_C1V = 0;
+			TPM0_C2V = FREQUENCY_TO_MOD(50);
+			TPM0_C3V = 0;
+			break;
+		// TODO @chekjun
+		case 5: // Backward + Left
+			TPM0_C0V = FREQUENCY_TO_MOD(50);
+			TPM0_C1V = 0;
+			TPM0_C2V = FREQUENCY_TO_MOD(100);
+			TPM0_C3V = 0;
+			break;
+		case 6: // Backward + Right
+			TPM0_C0V = FREQUENCY_TO_MOD(100);
+			TPM0_C1V = 0;
+			TPM0_C2V = FREQUENCY_TO_MOD(50);
+			TPM0_C3V = 0;
+			break;
+	}
+}
+
 void play_note(uint32_t freq) {
   TPM1_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | 
       (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
@@ -205,6 +275,18 @@ void play_note(uint32_t freq) {
 void stop_music(void) {
 	TPM1_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | 
       (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+}
+
+void led_toggle_red(void) {
+	// TODO @chekjun
+}
+
+void led_on_green(uint32_t pin) {
+	// TODO @chekjun
+}
+
+void led_off_green(uint32_t pin) {
+	// TODO @chekjun
 }
 
 // move len bytes from queue to buf, return number of bytes moved

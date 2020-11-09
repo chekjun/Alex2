@@ -47,6 +47,9 @@ enum color_t {NONE, RED, GREEN, BLUE, CYAN, YELLOW, MAGENTA, WHITE};
 #define DUR_FULL 1000
 #define DUR_HALF (DUR_FULL/2)
 #define DUR_QUART (DUR_FULL/4)
+#define DUR_EIGHT (DUR_FULL/8)
+#define DUR_SXTN (DUR_FULL/16)
+#define DUR_THTWO (DUR_FULL/32)
 
 // driver functions
 void InitUART2(uint32_t baud_rate);

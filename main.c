@@ -22,14 +22,20 @@
 #define MOVE_DUR 200
 
 // song lengths
-#define SONG_LEN 9
+#define SONG_LEN (8 + 8 + 11 + 1)
 #define CONNSONG_LEN 1
 #define ENDSONG_LEN 1
 
 uint8_t green_leds[] = {0, 0, 0, 0, 0, 0, 0, 0}; // TODO
-// uint32_t song_notes[SONG_LEN] = {NOTE_C5, NOTE_E5, NOTE_F4, NOTE_G4, NOTE_C5, NOTE_E5, NOTE_F4, NOTE_G4};
-uint32_t song_notes[SONG_LEN] = {NOTE_F4, NOTE_E4, NOTE_F4, NOTE_D4, NOTE_E4, NOTE_C4, NOTE_D4, NOTE_D4, 0};
-uint32_t song_dur[SONG_LEN] = {DUR_HALF, DUR_HALF, DUR_HALF, DUR_HALF, DUR_HALF, DUR_HALF, DUR_HALF, DUR_HALF, DUR_FULL};
+// uint32_t song_notes[SONG_LEN] = {NOTE_F4, NOTE_E4, NOTE_F4, NOTE_D4, NOTE_E4, NOTE_C4, NOTE_D4, NOTE_D4, 0};
+uint32_t song_notes[SONG_LEN] = {NOTE_C4, NOTE_D4, NOTE_F4, NOTE_D4, NOTE_F4, NOTE_F4, NOTE_E4, 
+  NOTE_C4, NOTE_D4, NOTE_F4, NOTE_D4, NOTE_F4, NOTE_F4, NOTE_D4, 
+  NOTE_C4, NOTE_D4, NOTE_F4, NOTE_D4, NOTE_C4, NOTE_G4, NOTE_E4, NOTE_C4, NOTE_G4, NOTE_F4,
+  0};
+uint32_t song_dur[SONG_LEN] = {DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_HALF, 
+  DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_HALF, 
+  DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_EIGHT, DUR_EIGHT, DUR_QUART, DUR_QUART, DUR_QUART, 
+  DUR_HALF};
 uint32_t conn_notes[CONNSONG_LEN] = {0};
 uint32_t conn_dur[CONNSONG_LEN] = {0};
 uint32_t end_notes[ENDSONG_LEN] = {0};
@@ -38,8 +44,11 @@ uint32_t end_dur[ENDSONG_LEN] = {0};
 void tBrain(void *argument);
 void tMotor(void *argument);
 void tLED(void *argument);
-void tEvent(void *argument);
+void tEventLED(void *argument);
 void tAudio(void *argument);
+void tEventAudio(void *argument);
+
+osThreadId_t event_audio_thread, event_led_thread;
 
 // vars for driver
 osMessageQueueId_t rxq;
@@ -61,7 +70,7 @@ const osThreadAttr_t thread_midprio = {
 };
 
 const osMutexAttr_t mutex_inherit = {
-	.attr_bits = osMutexRecursive
+	.attr_bits = osMutexPrioInherit
 };
 
 int main(void) {
@@ -84,7 +93,8 @@ int main(void) {
 		audio_mutex = osMutexNew(&mutex_inherit);
 
     osThreadNew(tBrain, NULL, NULL); 
-    osThreadNew(tEvent, NULL, &thread_midprio); 
+    event_audio_thread = osThreadNew(tEventAudio, NULL, &thread_midprio); 
+		event_led_thread = osThreadNew(tEventLED, NULL, &thread_midprio); 
 		osThreadNew(tAudio, NULL, NULL);
     osThreadNew(tLED, NULL, NULL);
 	  osThreadNew(tMotor, NULL, NULL);
@@ -99,10 +109,11 @@ void tBrain(void *argument) {
     osMessageQueueGet(rxq, &cmd, NULL, osWaitForever);
     switch(cmd) {
       case CMD_CONN: 
-        osEventFlagsSet(flags, FLAG_CONN);
+				osThreadFlagsSet(event_audio_thread, FLAG_CONN);
+				osThreadFlagsSet(event_led_thread, FLAG_CONN);
         break;
       case CMD_END:
-        osEventFlagsSet(flags, FLAG_END);
+        osThreadFlagsSet(event_audio_thread, FLAG_END);
         break;
       default:
         osMessageQueuePut(moveq, &cmd, 0, osWaitForever);
@@ -164,18 +175,25 @@ void tMotor(void *argument) {
 	}
 }
 
-void tEvent(void *argument) {
-	uint32_t events = osEventFlagsWait(flags, FLAG_CONN | FLAG_END, NULL, osWaitForever);
+void tEventAudio(void *argument) {
+	uint32_t events = osThreadFlagsWait(FLAG_CONN | FLAG_END, NULL, osWaitForever);
 	if (events & FLAG_CONN) {
-		osMutexAcquire(green_led_mutex, osWaitForever);		
 		osMutexAcquire(audio_mutex, osWaitForever);
-		// TODO flash green LEDs twice and play conn tune
+		// TODO play conn tune
 		osMutexRelease(audio_mutex);
-		osMutexRelease(green_led_mutex);
 	} else if (events & FLAG_END) {
 		osMutexAcquire(audio_mutex, osWaitForever);
 		// TODO play end tune
 		osMutexRelease(audio_mutex);
+	}
+}
+
+void tEventLED(void *argument) {
+	uint32_t events = osThreadFlagsWait(FLAG_CONN, NULL, osWaitForever);
+	if (events & FLAG_CONN) {
+		osMutexAcquire(green_led_mutex, osWaitForever);		
+		// TODO flash green LEDs twice
+		osMutexRelease(green_led_mutex);
 	}
 }
 
@@ -184,7 +202,7 @@ void tAudio(void *argument) {
 	for (;;) {
 		osMutexAcquire(audio_mutex, osWaitForever);
 		stop_music();
-		osDelay(100);
+		osDelay(0.1 * song_dur[idx]);
 		play_note(song_notes[idx]);
 		osMutexRelease(audio_mutex);
 		osDelay(song_dur[idx]);

@@ -179,11 +179,21 @@ void tEventAudio(void *argument) {
 	uint32_t events = osThreadFlagsWait(FLAG_CONN | FLAG_END, NULL, osWaitForever);
 	if (events & FLAG_CONN) {
 		osMutexAcquire(audio_mutex, osWaitForever);
-		// TODO play conn tune
+		for (uint32_t idx = 0; idx < CONNSONG_LEN; ++idx) {
+			stop_music();
+			osDelay(0.1 * conn_dur[idx]);
+			play_note(conn_notes[idx]);
+			osDelay(end_dur[idx]);
+		}
 		osMutexRelease(audio_mutex);
 	} else if (events & FLAG_END) {
 		osMutexAcquire(audio_mutex, osWaitForever);
-		// TODO play end tune
+		for (uint32_t idx = 0; idx < ENDSONG_LEN; ++idx) {
+			stop_music();
+			osDelay(0.1 * end_dur[idx]);
+			play_note(end_notes[idx]);
+			osDelay(end_dur[idx]);
+		}
 		osMutexRelease(audio_mutex);
 	}
 }

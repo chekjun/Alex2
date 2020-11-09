@@ -111,7 +111,7 @@ void InitMotor(void) {
   SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1); // MCGCLLCLK or  MCGLLCLK/2
 
   // Set Modulo Value 20971520 / 128 = 163840 / 3276 = 50 Hz
-  TPM0->MOD = FREQUENCY_TO_MOD(50);
+  TPM0->MOD = MOTOR_FAST;
 
   /* Edge-Aligned PWM */
   // Update SnC register: CMOD = 01, PS = 111 (128)
@@ -224,39 +224,39 @@ void motor_control(enum move_t move) {
 			break;
 		case FORWARDS: // Forward
 			TPM0_C0V = 0;
-			TPM0_C1V = FREQUENCY_TO_MOD(50); 
+			TPM0_C1V = MOTOR_FAST; 
 			TPM0_C2V = 0;
-			TPM0_C3V = FREQUENCY_TO_MOD(50);
+			TPM0_C3V = MOTOR_FAST;
 			break;
 		case CURVE_LEFT: // Forward + Left
 			TPM0_C0V = 0;
-			TPM0_C1V = FREQUENCY_TO_MOD(50);
+			TPM0_C1V = MOTOR_FAST;
 			TPM0_C2V = 0;
-			TPM0_C3V = FREQUENCY_TO_MOD(100);
+			TPM0_C3V = MOTOR_SLOW;
 			break;
 		case CURVE_RIGHT: // Forward + Right
 			TPM0_C0V = 0;
-			TPM0_C1V = FREQUENCY_TO_MOD(100);
+			TPM0_C1V = MOTOR_SLOW;
 			TPM0_C2V = 0;
-			TPM0_C3V = FREQUENCY_TO_MOD(50);
+			TPM0_C3V = MOTOR_FAST;
 			break;
 		case BACKWARDS: // Backward
-			TPM0_C0V = FREQUENCY_TO_MOD(50);
+			TPM0_C0V = MOTOR_FAST;
 			TPM0_C1V = 0;
-			TPM0_C2V = FREQUENCY_TO_MOD(50);
+			TPM0_C2V = MOTOR_FAST;
 			TPM0_C3V = 0;
 			break;
 		// TODO @chekjun
 		case 5: // Backward + Left
-			TPM0_C0V = FREQUENCY_TO_MOD(50);
+			TPM0_C0V = MOTOR_FAST;
 			TPM0_C1V = 0;
-			TPM0_C2V = FREQUENCY_TO_MOD(100);
+			TPM0_C2V = MOTOR_SLOW;
 			TPM0_C3V = 0;
 			break;
 		case 6: // Backward + Right
-			TPM0_C0V = FREQUENCY_TO_MOD(100);
+			TPM0_C0V = MOTOR_SLOW;
 			TPM0_C1V = 0;
-			TPM0_C2V = FREQUENCY_TO_MOD(50);
+			TPM0_C2V = MOTOR_FAST;
 			TPM0_C3V = 0;
 			break;
 	}

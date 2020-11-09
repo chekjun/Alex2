@@ -2,6 +2,7 @@
 #include "MKL25Z4.h"
 #include "cmsis_os2.h"
 #include "driver.h"
+#include "songs.h"
 
 // UART settings
 #define Q_SIZE (16)
@@ -21,25 +22,7 @@
 // movement settings
 #define MOVE_DUR 200
 
-// song lengths
-#define SONG_LEN (8 + 8 + 11 + 1)
-#define CONNSONG_LEN 1
-#define ENDSONG_LEN 1
-
 uint8_t green_leds[] = {0, 0, 0, 0, 0, 0, 0, 0}; // TODO
-// uint32_t song_notes[SONG_LEN] = {NOTE_F4, NOTE_E4, NOTE_F4, NOTE_D4, NOTE_E4, NOTE_C4, NOTE_D4, NOTE_D4, 0};
-uint32_t song_notes[SONG_LEN] = {NOTE_C4, NOTE_D4, NOTE_F4, NOTE_D4, NOTE_F4, NOTE_F4, NOTE_E4, 
-  NOTE_C4, NOTE_D4, NOTE_F4, NOTE_D4, NOTE_F4, NOTE_F4, NOTE_D4, 
-  NOTE_C4, NOTE_D4, NOTE_F4, NOTE_D4, NOTE_C4, NOTE_G4, NOTE_E4, NOTE_C4, NOTE_G4, NOTE_F4,
-  0};
-uint32_t song_dur[SONG_LEN] = {DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_HALF, 
-  DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_HALF, 
-  DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_QUART, DUR_EIGHT, DUR_EIGHT, DUR_QUART, DUR_QUART, DUR_QUART, 
-  DUR_HALF};
-uint32_t conn_notes[CONNSONG_LEN] = {0};
-uint32_t conn_dur[CONNSONG_LEN] = {0};
-uint32_t end_notes[ENDSONG_LEN] = {0};
-uint32_t end_dur[ENDSONG_LEN] = {0};
 
 void tBrain(void *argument);
 void tMotor(void *argument);
@@ -155,16 +138,18 @@ void tEventAudio(void *argument) {
 		osMutexAcquire(audio_mutex, osWaitForever);
 		for (uint32_t idx = 0; idx < CONNSONG_LEN; ++idx) {
 			stop_music();
-			osDelay(0.1 * conn_dur[idx]);
+			// osDelay(0.1 * conn_dur[idx]);
+			osDelay(20);
 			play_note(conn_notes[idx]);
-			osDelay(end_dur[idx]);
+			osDelay(conn_dur[idx]);
 		}
 		osMutexRelease(audio_mutex);
 	} else if (events & FLAG_END) {
 		osMutexAcquire(audio_mutex, osWaitForever);
 		for (uint32_t idx = 0; idx < ENDSONG_LEN; ++idx) {
 			stop_music();
-			osDelay(0.1 * end_dur[idx]);
+			// osDelay(0.1 * end_dur[idx]);
+			osDelay(20);
 			play_note(end_notes[idx]);
 			osDelay(end_dur[idx]);
 		}
@@ -201,7 +186,8 @@ void tAudio(void *argument) {
 	for (;;) {
 		osMutexAcquire(audio_mutex, osWaitForever);
 		stop_music();
-		osDelay(0.1 * song_dur[idx]);
+		// osDelay(0.1 * song_dur[idx]);
+		osDelay(20);
 		play_note(song_notes[idx]);
 		osMutexRelease(audio_mutex);
 		osDelay(song_dur[idx]);

@@ -3,14 +3,12 @@
 #include "cmsis_os2.h"
 #include "driver.h"
 
-#define UART_TX_PORTE22 22
-#define UART_RX_PORTE23 23
-#define UART2_INT_PRIO 0
-
 #define RED_LED 18 // PortB Pin 18
 #define GREEN_LED 19 // PortB Pin 19
 #define BLUE_LED 1 // PortD Pin 1
-#define MASK32(x) ((uint32_t)(1 << ((uint32_t)x))) // Changes all bits to 0 except x
+
+int FRONT_LED[] = {7, 0, 3, 4, 5, 6, 10, 11, 12, 13}; // PortC Pin 7 upwards to Pin 13
+#define REAR_LED 16 // PortC Pin 16
 
 // PWM Pins
 #define SPEAKER 0
@@ -18,6 +16,12 @@
 #define PTD1_Pin 1
 #define PTD2_Pin 2
 #define PTD3_Pin 3
+
+#define UART_TX_PORTE22 22
+#define UART_RX_PORTE23 23
+#define UART2_INT_PRIO 0
+
+#define MASK32(x) ((uint32_t)(1 << ((uint32_t)x))) // Changes all bits to 0 except x
 
 // Movement
 // smaller oveflow value => higher duty cycle => faster
@@ -77,7 +81,20 @@ void InitBoardLED(void) {
 }
 
 void InitExtLED(void) {
-  // TODO @chekjun
+    // Enable Clock Gating for PORTC
+    SIM->SCGC5 |= SIM_SCGC5_PORTC_MASK;
+		// Configure MUX
+		for (int i = 0; i < sizeof(FRONT_LED); i++) {
+		    PORTC->PCR[FRONT_LED[i]] &= ~PORT_PCR_MUX_MASK;
+        PORTC->PCR[FRONT_LED[i]] |= PORT_PCR_MUX(1);
+    }
+    PORTC->PCR[REAR_LED] &= ~PORT_PCR_MUX_MASK;
+    PORTC->PCR[REAR_LED] |= PORT_PCR_MUX(1);
+    // Set Data Direction Registers for PortC
+    for (int i = 0; i < sizeof(FRONT_LED); i++) {
+        PTC->PDDR |= MASK32(FRONT_LED[i]);
+    }
+    PTC->PDDR |= MASK32(REAR_LED);
 }
 
 void InitMotor(void) {
@@ -246,18 +263,17 @@ void motor_control(enum move_t move) {
 			TPM0_C2V = MOTOR_FAST;
 			TPM0_C3V = 0;
 			break;
-		// TODO @chekjun
-		case 5: // Backward + Left
-			TPM0_C0V = MOTOR_FAST;
-			TPM0_C1V = 0;
+		case TURN_LEFT: // Rotate Left
+			TPM0_C0V = 0;
+			TPM0_C1V = MOTOR_SLOW;
 			TPM0_C2V = MOTOR_SLOW;
 			TPM0_C3V = 0;
 			break;
-		case 6: // Backward + Right
+		case TURN_RIGHT: // Rotate Right
 			TPM0_C0V = MOTOR_SLOW;
 			TPM0_C1V = 0;
-			TPM0_C2V = MOTOR_FAST;
-			TPM0_C3V = 0;
+			TPM0_C2V = 0;
+			TPM0_C3V = MOTOR_SLOW;
 			break;
 	}
 }
@@ -278,15 +294,15 @@ void stop_music(void) {
 }
 
 void led_toggle_red(void) {
-	// TODO @chekjun
+	PTC->PTOR |= MASK32(REAR_LED);
 }
 
 void led_on_green(uint32_t pin) {
-	// TODO @chekjun
+	PTC->PDOR |= MASK32(pin);
 }
 
 void led_off_green(uint32_t pin) {
-	// TODO @chekjun
+	PTC->PDOR &= ~MASK32(pin);
 }
 
 // move len bytes from queue to buf, return number of bytes moved

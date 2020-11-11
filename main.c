@@ -13,6 +13,8 @@
 #define CMD_A 'A'
 #define CMD_S 'S'
 #define CMD_D 'D'
+#define CMD_Q 'Q'
+#define CMD_E 'E'
 
 // event flags
 #define FLAG_CONN ((uint32_t) 0x00000001)
@@ -22,7 +24,7 @@
 // movement settings
 #define MOVE_DUR 200
 
-uint8_t green_leds[] = {0, 0, 0, 0, 0, 0, 0, 0}; // TODO
+uint8_t green_leds[] = {7, 0, 3, 4, 5, 6, 10, 11, 12, 13}; // TODO
 
 void tBrain(void *argument);
 void tMotor(void *argument);
@@ -123,7 +125,12 @@ void tMotor(void *argument) {
 				case CMD_D:
 					motor_control(TURN_RIGHT);
 					break;
-				// TODO @chekjun
+				case CMD_Q:
+					motor_control(CURVE_LEFT);
+					break;
+				case CMD_E:
+					motor_control(CURVE_RIGHT);
+					break;
 			}
     } else { // no command received, stop
       osEventFlagsClear(flags, FLAG_MOVE);

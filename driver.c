@@ -83,14 +83,15 @@ void InitExtLED(void) {
     // Enable Clock Gating for PORTC
     SIM->SCGC5 |= SIM_SCGC5_PORTC_MASK;
 		// Configure MUX
-		for (int i = 0; i < sizeof(FRONT_LEDS); i++) {
+		for (int i = 0; i < FRONT_LEDS_LEN; i++) {				
 		    PORTC->PCR[FRONT_LEDS[i]] &= ~PORT_PCR_MUX_MASK;
         PORTC->PCR[FRONT_LEDS[i]] |= PORT_PCR_MUX(1);
     }
     PORTC->PCR[REAR_LED] &= ~PORT_PCR_MUX_MASK;
     PORTC->PCR[REAR_LED] |= PORT_PCR_MUX(1);
+		
     // Set Data Direction Registers for PortC
-    for (int i = 0; i < sizeof(FRONT_LEDS); i++) {
+    for (int i = 0; i < FRONT_LEDS_LEN; i++) {
         PTC->PDDR |= MASK32(FRONT_LEDS[i]);
     }
     PTC->PDDR |= MASK32(REAR_LED);

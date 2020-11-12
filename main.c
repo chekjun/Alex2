@@ -24,8 +24,6 @@
 // movement settings
 #define MOVE_DUR 200
 
-int FRONT_LED[] = {7, 0, 3, 4, 5, 6, 10, 11, 12, 13}; // PortC Pin 7 upwards to Pin 13
-
 void tBrain(void *argument);
 void tMotor(void *argument);
 void tLED(void *argument);
@@ -63,13 +61,12 @@ int main(void) {
 	  SystemCoreClockUpdate();
 
 	  InitUART2(BAUD_RATE);
-		InitBoardLED(); // TODO remove when not needed
+		//InitBoardLED();
 		InitExtLED();
 	  InitMotor();
 	  InitAudio();
 
 	  osKernelInitialize();
-	  led_control(YELLOW);
     
     flags = osEventFlagsNew(NULL);
 	  rxq = osMessageQueueNew(Q_SIZE, sizeof(UCHAR), NULL);
@@ -169,19 +166,19 @@ void tEventLED(void *argument) {
 	uint32_t events = osThreadFlagsWait(FLAG_CONN, NULL, osWaitForever);
 	if (events & FLAG_CONN) { // flash green leds
 		osMutexAcquire(green_led_mutex, osWaitForever);		
-		for (uint32_t i = 0; i < sizeof(FRONT_LEDS); ++i) {
+		for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
 				led_on_green(FRONT_LEDS[i]);
 		}
 		osDelay(250);
-		for (uint32_t i = 0; i < sizeof(FRONT_LEDS); ++i) {
+		for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
 				led_off_green(FRONT_LEDS[i]);
 		}
 		osDelay(250);
-		for (uint32_t i = 0; i < sizeof(FRONT_LEDS); ++i) {
+		for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
 				led_on_green(FRONT_LEDS[i]);
 		}
 		osDelay(250);
-		for (uint32_t i = 0; i < sizeof(FRONT_LEDS); ++i) {
+		for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
 				led_off_green(FRONT_LEDS[i]);
 		}
 		osDelay(250);
@@ -211,14 +208,14 @@ void tLED(void *argument) {
     if (osEventFlagsWait(flags, FLAG_MOVE, osFlagsNoClear, 0) 
         == osOK) { // moving
 			led_off_green(FRONT_LEDS[idx]);
-      idx = (idx + 1) % (sizeof(FRONT_LEDS) / sizeof(FRONT_LEDS[0]));
+      idx = (idx + 1) % FRONT_LEDS_LEN;
       led_on_green(FRONT_LEDS[idx]);
 			led_toggle_red();
 			osMutexRelease(green_led_mutex);
 			osMutexRelease(red_led_mutex);
 			osDelay(250);
     } else { // stationary
-			for (uint32_t i = 0; i < sizeof(FRONT_LEDS); ++i) {
+			for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
 				led_on_green(FRONT_LEDS[i]);
 			}
       led_toggle_red();

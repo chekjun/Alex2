@@ -61,8 +61,8 @@ int main(void) {
 	  SystemCoreClockUpdate();
 
 	  InitUART2(BAUD_RATE);
-		//InitBoardLED();
-		InitExtLED();
+		InitBoardLED();
+		//InitExtLED();
 	  InitMotor();
 	  InitAudio();
 
@@ -90,6 +90,7 @@ void tBrain(void *argument) {
   UCHAR cmd;
   for (;;) {
     osMessageQueueGet(rxq, &cmd, NULL, osWaitForever);
+		//led_control(WHITE);
     switch(cmd) {
       case CMD_CONN: 
 				osThreadFlagsSet(event_audio_thread, FLAG_CONN);
@@ -110,6 +111,7 @@ void tMotor(void *argument) {
 	for (;;) {
     if (osMessageQueueGet(moveq, &data, NULL, MOVE_DUR) == osOK) {
       osEventFlagsSet(flags, FLAG_MOVE);
+			//led_control(YELLOW);
       switch(data) {
 				case CMD_W:
 					motor_control(FORWARDS);
@@ -138,51 +140,55 @@ void tMotor(void *argument) {
 }
 
 void tEventAudio(void *argument) {
-	uint32_t events = osThreadFlagsWait(FLAG_CONN | FLAG_END, NULL, osWaitForever);
-	if (events & FLAG_CONN) {
-		osMutexAcquire(audio_mutex, osWaitForever);
-		for (uint32_t idx = 0; idx < CONNSONG_LEN; ++idx) {
-			stop_music();
-			// osDelay(0.1 * conn_dur[idx]);
-			osDelay(20);
-			play_note(conn_notes[idx]);
-			osDelay(conn_dur[idx]);
+	for (;;) {
+		uint32_t events = osThreadFlagsWait(FLAG_CONN | FLAG_END, NULL, osWaitForever);
+		if (events & FLAG_CONN) {
+			osMutexAcquire(audio_mutex, osWaitForever);
+			for (uint32_t idx = 0; idx < CONNSONG_LEN; ++idx) {
+				stop_music();
+				// osDelay(0.1 * conn_dur[idx]);
+				osDelay(20);
+				play_note(conn_notes[idx]);
+				osDelay(conn_dur[idx]);
+			}
+			osMutexRelease(audio_mutex);
+		} else if (events & FLAG_END) {
+			osMutexAcquire(audio_mutex, osWaitForever);
+			for (uint32_t idx = 0; idx < ENDSONG_LEN; ++idx) {
+				stop_music();
+				// osDelay(0.1 * end_dur[idx]);
+				osDelay(20);
+				play_note(end_notes[idx]);
+				osDelay(end_dur[idx]);
+			}
+			osMutexRelease(audio_mutex);
 		}
-		osMutexRelease(audio_mutex);
-	} else if (events & FLAG_END) {
-		osMutexAcquire(audio_mutex, osWaitForever);
-		for (uint32_t idx = 0; idx < ENDSONG_LEN; ++idx) {
-			stop_music();
-			// osDelay(0.1 * end_dur[idx]);
-			osDelay(20);
-			play_note(end_notes[idx]);
-			osDelay(end_dur[idx]);
-		}
-		osMutexRelease(audio_mutex);
 	}
 }
 
 void tEventLED(void *argument) {
-	uint32_t events = osThreadFlagsWait(FLAG_CONN, NULL, osWaitForever);
-	if (events & FLAG_CONN) { // flash green leds
-		osMutexAcquire(green_led_mutex, osWaitForever);		
-		for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
-				led_on_green(FRONT_LEDS[i]);
+	for (;;) {
+		uint32_t events = osThreadFlagsWait(FLAG_CONN, NULL, osWaitForever);
+		if (events & FLAG_CONN) { // flash green leds
+			osMutexAcquire(green_led_mutex, osWaitForever);		
+			for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
+					led_on_green(FRONT_LEDS[i]);
+			}
+			osDelay(250);
+			for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
+					led_off_green(FRONT_LEDS[i]);
+			}
+			osDelay(250);
+			for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
+					led_on_green(FRONT_LEDS[i]);
+			}
+			osDelay(250);
+			for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
+					led_off_green(FRONT_LEDS[i]);
+			}
+			osDelay(250);
+			osMutexRelease(green_led_mutex);
 		}
-		osDelay(250);
-		for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
-				led_off_green(FRONT_LEDS[i]);
-		}
-		osDelay(250);
-		for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
-				led_on_green(FRONT_LEDS[i]);
-		}
-		osDelay(250);
-		for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
-				led_off_green(FRONT_LEDS[i]);
-		}
-		osDelay(250);
-		osMutexRelease(green_led_mutex);
 	}
 }
 
@@ -205,15 +211,16 @@ void tLED(void *argument) {
   for (;;) {
 		osMutexAcquire(green_led_mutex, osWaitForever);
 		osMutexAcquire(red_led_mutex, osWaitForever);
-    if (osEventFlagsWait(flags, FLAG_MOVE, osFlagsNoClear, 0) 
-        == osOK) { // moving
-			led_off_green(FRONT_LEDS[idx]);
+    if ((osEventFlagsGet(flags) & FLAG_MOVE) == FLAG_MOVE) { // moving
+			for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
+				led_off_green(FRONT_LEDS[i]);
+			}
       idx = (idx + 1) % FRONT_LEDS_LEN;
       led_on_green(FRONT_LEDS[idx]);
 			led_toggle_red();
 			osMutexRelease(green_led_mutex);
 			osMutexRelease(red_led_mutex);
-			osDelay(250);
+			osDelay(500); // switch the delays
     } else { // stationary
 			for (uint32_t i = 0; i < FRONT_LEDS_LEN; ++i) {
 				led_on_green(FRONT_LEDS[i]);
@@ -221,7 +228,7 @@ void tLED(void *argument) {
       led_toggle_red();
 			osMutexRelease(green_led_mutex);
 			osMutexRelease(red_led_mutex);
-			osDelay(500);
+			osDelay(250);
     }
   }
 }

@@ -13,6 +13,8 @@
 
 enum color_t {NONE, RED, GREEN, BLUE, CYAN, YELLOW, MAGENTA, WHITE};
 
+const static int FRONT_LEDS[] = {7, 0, 3, 4, 5, 6, 10, 11, 12, 13}; // PortC Pin 7 upwards to Pin 13
+
 enum move_t {STOP, FORWARDS, BACKWARDS, CURVE_LEFT, CURVE_RIGHT, TURN_LEFT, TURN_RIGHT};
 
 // driver functions

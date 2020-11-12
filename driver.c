@@ -7,7 +7,6 @@
 #define GREEN_LED 19 // PortB Pin 19
 #define BLUE_LED 1 // PortD Pin 1
 
-int FRONT_LED[] = {7, 0, 3, 4, 5, 6, 10, 11, 12, 13}; // PortC Pin 7 upwards to Pin 13
 #define REAR_LED 16 // PortC Pin 16
 
 // PWM Pins
@@ -84,15 +83,15 @@ void InitExtLED(void) {
     // Enable Clock Gating for PORTC
     SIM->SCGC5 |= SIM_SCGC5_PORTC_MASK;
 		// Configure MUX
-		for (int i = 0; i < sizeof(FRONT_LED); i++) {
-		    PORTC->PCR[FRONT_LED[i]] &= ~PORT_PCR_MUX_MASK;
-        PORTC->PCR[FRONT_LED[i]] |= PORT_PCR_MUX(1);
+		for (int i = 0; i < sizeof(FRONT_LEDS); i++) {
+		    PORTC->PCR[FRONT_LEDS[i]] &= ~PORT_PCR_MUX_MASK;
+        PORTC->PCR[FRONT_LEDS[i]] |= PORT_PCR_MUX(1);
     }
     PORTC->PCR[REAR_LED] &= ~PORT_PCR_MUX_MASK;
     PORTC->PCR[REAR_LED] |= PORT_PCR_MUX(1);
     // Set Data Direction Registers for PortC
-    for (int i = 0; i < sizeof(FRONT_LED); i++) {
-        PTC->PDDR |= MASK32(FRONT_LED[i]);
+    for (int i = 0; i < sizeof(FRONT_LEDS); i++) {
+        PTC->PDDR |= MASK32(FRONT_LEDS[i]);
     }
     PTC->PDDR |= MASK32(REAR_LED);
 }

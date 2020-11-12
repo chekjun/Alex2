@@ -7,8 +7,8 @@
 // UART settings
 #define Q_SIZE (16)
 #define BAUD_RATE 9600
-#define CMD_CONN 100
-#define CMD_END 200
+#define CMD_CONN 0x01
+#define CMD_END 0xFF
 #define CMD_W 'W'
 #define CMD_A 'A'
 #define CMD_S 'S'
@@ -24,7 +24,7 @@
 // movement settings
 #define MOVE_DUR 200
 
-uint8_t green_leds[] = {7, 0, 3, 4, 5, 6, 10, 11, 12, 13}; // TODO
+int FRONT_LED[] = {7, 0, 3, 4, 5, 6, 10, 11, 12, 13}; // PortC Pin 7 upwards to Pin 13
 
 void tBrain(void *argument);
 void tMotor(void *argument);
@@ -64,6 +64,7 @@ int main(void) {
 
 	  InitUART2(BAUD_RATE);
 		InitBoardLED(); // TODO remove when not needed
+		InitExtLED();
 	  InitMotor();
 	  InitAudio();
 
@@ -168,20 +169,20 @@ void tEventLED(void *argument) {
 	uint32_t events = osThreadFlagsWait(FLAG_CONN, NULL, osWaitForever);
 	if (events & FLAG_CONN) { // flash green leds
 		osMutexAcquire(green_led_mutex, osWaitForever);		
-		for (uint32_t i = 0; i < sizeof(green_leds); ++i) {
-				led_on_green(green_leds[i]);
+		for (uint32_t i = 0; i < sizeof(FRONT_LEDS); ++i) {
+				led_on_green(FRONT_LEDS[i]);
 		}
 		osDelay(250);
-		for (uint32_t i = 0; i < sizeof(green_leds); ++i) {
-				led_off_green(green_leds[i]);
+		for (uint32_t i = 0; i < sizeof(FRONT_LEDS); ++i) {
+				led_off_green(FRONT_LEDS[i]);
 		}
 		osDelay(250);
-		for (uint32_t i = 0; i < sizeof(green_leds); ++i) {
-				led_on_green(green_leds[i]);
+		for (uint32_t i = 0; i < sizeof(FRONT_LEDS); ++i) {
+				led_on_green(FRONT_LEDS[i]);
 		}
 		osDelay(250);
-		for (uint32_t i = 0; i < sizeof(green_leds); ++i) {
-				led_off_green(green_leds[i]);
+		for (uint32_t i = 0; i < sizeof(FRONT_LEDS); ++i) {
+				led_off_green(FRONT_LEDS[i]);
 		}
 		osDelay(250);
 		osMutexRelease(green_led_mutex);
@@ -209,16 +210,16 @@ void tLED(void *argument) {
 		osMutexAcquire(red_led_mutex, osWaitForever);
     if (osEventFlagsWait(flags, FLAG_MOVE, osFlagsNoClear, 0) 
         == osOK) { // moving
-			led_off_green(green_leds[idx]);
-      idx = (idx + 1) % (sizeof(green_leds) / sizeof(green_leds[0]));
-      led_on_green(green_leds[idx]);
+			led_off_green(FRONT_LEDS[idx]);
+      idx = (idx + 1) % (sizeof(FRONT_LEDS) / sizeof(FRONT_LEDS[0]));
+      led_on_green(FRONT_LEDS[idx]);
 			led_toggle_red();
 			osMutexRelease(green_led_mutex);
 			osMutexRelease(red_led_mutex);
 			osDelay(250);
     } else { // stationary
-			for (uint32_t i = 0; i < sizeof(green_leds); ++i) {
-				led_on_green(green_leds[i]);
+			for (uint32_t i = 0; i < sizeof(FRONT_LEDS); ++i) {
+				led_on_green(FRONT_LEDS[i]);
 			}
       led_toggle_red();
 			osMutexRelease(green_led_mutex);

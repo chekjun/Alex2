@@ -61,8 +61,8 @@ int main(void) {
 	  SystemCoreClockUpdate();
 
 	  InitUART2(BAUD_RATE);
-		InitBoardLED();
-		//InitExtLED();
+		//InitBoardLED();
+		InitExtLED();
 	  InitMotor();
 	  InitAudio();
 

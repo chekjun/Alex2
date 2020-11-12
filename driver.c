@@ -23,10 +23,14 @@
 #define MASK32(x) ((uint32_t)(1 << ((uint32_t)x))) // Changes all bits to 0 except x
 
 // Movement
-// smaller oveflow value => higher duty cycle => faster
+// larger oveflow value => higher duty cycle => faster
 #define FREQUENCY_TO_MOD(x) (375000 / x)
-#define MOTOR_SLOW (375000 / 100)
-#define MOTOR_FAST (375000 / 50)
+#define MOTOR_SLOWER_LEFT (375000 / 150)
+#define MOTOR_SLOW_LEFT (375000 / 100)
+#define MOTOR_FAST_LEFT (375000 / 50)
+#define MOTOR_SLOWER_RIGHT (MOTOR_SLOWER_LEFT * 1.3)
+#define MOTOR_SLOW_RIGHT (MOTOR_SLOW_LEFT * 1.3)
+#define MOTOR_FAST_RIGHT (MOTOR_FAST_LEFT * 1.3)
 
 extern osMessageQueueId_t rxq;
 extern UINT errcode;
@@ -102,10 +106,6 @@ void InitMotor(void) {
   SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;
   SIM_SCGC5 |= SIM_SCGC5_PORTD_MASK;
 
-  // Configure Mode 3 for speaker PWM
-  PORTB->PCR[SPEAKER] &= ~PORT_PCR_MUX_MASK;
-  PORTB->PCR[SPEAKER] |= PORT_PCR_MUX(3);
-
   // Configure Mode 4 for motor PWM
   PORTD->PCR[PTD0_Pin] &= ~PORT_PCR_MUX_MASK;
   PORTD->PCR[PTD0_Pin] |= PORT_PCR_MUX(4);
@@ -128,7 +128,7 @@ void InitMotor(void) {
   SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1); // MCGCLLCLK or  MCGLLCLK/2
 
   // Set Modulo Value 20971520 / 128 = 163840 / 3276 = 50 Hz
-  TPM0->MOD = MOTOR_FAST;
+  TPM0->MOD = MOTOR_FAST_RIGHT;
 
   /* Edge-Aligned PWM */
   // Update SnC register: CMOD = 01, PS = 111 (128)
@@ -159,7 +159,8 @@ void InitMotor(void) {
 
 void InitAudio(void) {
   SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;
-
+	
+  // Configure Mode 3 for speaker PWM
   PORTB->PCR[SPEAKER] &= ~PORT_PCR_MUX_MASK;
   PORTB->PCR[SPEAKER] |= PORT_PCR_MUX(3);
 
@@ -232,7 +233,8 @@ void led_control(enum color_t color) {
 }
 
 void motor_control(enum move_t move) {
-	switch(move) { // TODO reorganise
+	// 0: left reverse, 1: left forwards, 2: right reverse, 3: right forwards
+	switch(move) {
 		case STOP:
 			TPM0_C0V = 0;
       TPM0_C1V = 0;
@@ -241,39 +243,39 @@ void motor_control(enum move_t move) {
 			break;
 		case FORWARDS: // Forward
 			TPM0_C0V = 0;
-			TPM0_C1V = MOTOR_FAST; 
+			TPM0_C1V = MOTOR_FAST_LEFT; 
 			TPM0_C2V = 0;
-			TPM0_C3V = MOTOR_FAST;
+			TPM0_C3V = MOTOR_FAST_RIGHT;
 			break;
 		case CURVE_LEFT: // Forward + Left
 			TPM0_C0V = 0;
-			TPM0_C1V = MOTOR_FAST;
+			TPM0_C1V = MOTOR_SLOWER_LEFT;
 			TPM0_C2V = 0;
-			TPM0_C3V = MOTOR_SLOW;
+			TPM0_C3V = MOTOR_FAST_RIGHT;
 			break;
 		case CURVE_RIGHT: // Forward + Right
 			TPM0_C0V = 0;
-			TPM0_C1V = MOTOR_SLOW;
+			TPM0_C1V = MOTOR_FAST_LEFT;
 			TPM0_C2V = 0;
-			TPM0_C3V = MOTOR_FAST;
+			TPM0_C3V = MOTOR_SLOWER_RIGHT;
 			break;
 		case BACKWARDS: // Backward
-			TPM0_C0V = MOTOR_FAST;
+			TPM0_C0V = MOTOR_FAST_LEFT;
 			TPM0_C1V = 0;
-			TPM0_C2V = MOTOR_FAST;
+			TPM0_C2V = MOTOR_FAST_RIGHT;
 			TPM0_C3V = 0;
 			break;
 		case TURN_LEFT: // Rotate Left
-			TPM0_C0V = 0;
-			TPM0_C1V = MOTOR_SLOW;
-			TPM0_C2V = MOTOR_SLOW;
-			TPM0_C3V = 0;
-			break;
-		case TURN_RIGHT: // Rotate Right
-			TPM0_C0V = MOTOR_SLOW;
+			TPM0_C0V = MOTOR_SLOW_LEFT;
 			TPM0_C1V = 0;
 			TPM0_C2V = 0;
-			TPM0_C3V = MOTOR_SLOW;
+			TPM0_C3V = MOTOR_SLOW_RIGHT;
+			break;
+		case TURN_RIGHT: // Rotate Right
+			TPM0_C0V = 0;
+			TPM0_C1V = MOTOR_SLOW_LEFT;
+			TPM0_C2V = MOTOR_SLOW_RIGHT;
+			TPM0_C3V = 0;
 			break;
 	}
 }
